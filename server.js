@@ -14,6 +14,7 @@ const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const HTTPS_PORT = process.env.HTTPS_PORT || 5443;
+const DISABLE_HTTPS_REDIRECT = process.env.DISABLE_HTTPS_REDIRECT === 'true';
 const storageDir = path.join(__dirname, 'storage');
 const trashDir = path.join(storageDir, '.trash');
 const hiddenDir = path.join(storageDir, '.hidden');
@@ -38,6 +39,7 @@ app.use(helmet({
             scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "blob:"],
             mediaSrc: ["'self'", "blob:"],
+            "upgrade-insecure-requests": null, // Prevent browser from forcing HTTPS for assets on HTTP ports
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -129,10 +131,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// HTTP to HTTPS redirect - only for HTTP server port
+// HTTP to HTTPS redirect - only if HTTPS is active and redirect is not disabled
 app.use((req, res, next) => {
-    console.log(`HTTP redirect check: localPort=${req.socket.localPort}, PORT=${PORT}`);
-    if (req.socket.localPort == PORT) {
+    if (httpsServer && !req.secure && !DISABLE_HTTPS_REDIRECT) {
         console.log(`Redirecting to https://${req.hostname}:${HTTPS_PORT}${req.url}`);
         return res.redirect(`https://${req.hostname}:${HTTPS_PORT}${req.url}`);
     }
