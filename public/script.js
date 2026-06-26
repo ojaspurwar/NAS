@@ -68,13 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedFiles = new Set();
     let modalConfirmCallback = null;
 
-    // Close mobile menus when clicking elsewhere
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.more-btn') && !e.target.closest('.mobile-menu')) {
-            document.querySelectorAll('.mobile-menu.show').forEach(m => m.classList.remove('show'));
-        }
-    });
-
     // --- Modal Logic ---
     function showModal(title, desc, placeholder, initialValue, onConfirm) {
         modalTitle.innerText = title;
@@ -218,7 +211,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loginBtn.addEventListener('click', async () => {
-        console.log('Login button clicked, password:', passwordInput.value);
         authToken = passwordInput.value;
         localStorage.setItem('nas_token', authToken);
         const res = await fetch(`/api/files?path=`, { headers: { 'Authorization': `Bearer ${authToken}` } });
@@ -278,11 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
     newFolderBtn.addEventListener('click', () => {
         showModal('Create Folder', 'Enter the name of the new folder:', 'Folder name', '', async (folderName) => {
             if (!folderName) return;
+            const newPath = currentPath ? `${currentPath}/${folderName}` : folderName;
             try {
                 const response = await fetch('/api/folders', {
                     method: 'POST',
                     headers: getHeaders(),
-                    body: JSON.stringify({ path: currentPath, name: folderName })
+                    body: JSON.stringify({ path: newPath })
                 });
                 if (handleAuthError(response)) return;
                 if (response.ok) fetchFiles();
@@ -299,15 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadFileBtn.addEventListener('click', () => fileInput.click());
     uploadFolderBtn.addEventListener('click', () => folderInput.click());
 
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            // Convert FileList to array of file objects
-            const filesArray = Array.from(e.target.files).map(file => ({
-                file: file,
-                path: currentPath
-            }));
-            handleUpload(filesArray);
-        }
+    fileInput.addEventListener('change', (e) => { 
+        if (e.target.files.length > 0) handleUpload(e.target.files); 
     });
 
     folderInput.addEventListener('change', (e) => {
@@ -333,25 +319,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleUpload(itemsArray) {
         progressContainer.style.display = 'block';
-
-        // Group files by destination path for batch uploads
-        const pathGroups = {};
-        itemsArray.forEach(item => {
+        let successCount = 0;
+        for (let i = 0; i < itemsArray.length; i++) {
+            const item = itemsArray[i];
             const file = item.file || item;
             const destPath = item.path !== undefined ? item.path : currentPath;
-            if (!pathGroups[destPath]) pathGroups[destPath] = [];
-            pathGroups[destPath].push(file);
-        });
-
-        let totalSuccess = 0;
-        const totalFiles = itemsArray.length;
-        let uploadedFiles = 0;
-
-        for (const [destPath, files] of Object.entries(pathGroups)) {
             const data = new FormData();
             data.append('path', destPath);
-            files.forEach(file => data.append('files', file));
-
+            data.append('file', file);
             try {
                 const response = await fetch('/api/upload', {
                     method: 'POST',
@@ -359,25 +334,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: data
                 });
                 if (handleAuthError(response)) return;
-                if (response.ok) {
-                    const result = await response.json();
-                    totalSuccess += result.files?.length || files.length;
-                }
-                uploadedFiles += files.length;
-                progressBar.style.width = `${Math.round((uploadedFiles / totalFiles) * 100)}%`;
-            } catch (err) {
-                console.error('Upload error:', err);
-                uploadedFiles += files.length;
-                progressBar.style.width = `${Math.round((uploadedFiles / totalFiles) * 100)}%`;
-            }
+                if (response.ok) successCount++;
+                progressBar.style.width = `${Math.round(((i + 1) / itemsArray.length) * 100)}%`;
+            } catch (err) { console.error('Upload error:', err); }
         }
-
         setTimeout(() => {
             progressContainer.style.display = 'none';
             progressBar.style.width = '0%';
             fileInput.value = '';
             folderInput.value = '';
-            if (totalSuccess > 0) fetchFiles();
+            if (successCount > 0) fetchFiles();
         }, 1000);
     }
 
@@ -495,29 +461,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const checkboxHtml = `<input type="checkbox" class="file-checkbox" data-path="${filePath.replace(/"/g, '&quot;')}" ${selectedFiles.has(filePath) ? 'checked' : ''}>`;
             
             let fileIconHtml = '';
-            let iconClass = 'fa-file';
-            let iconType = '';
-
+            let onClickAction = '';
+            
             if (file.isDirectory) {
-                fileIconHtml = `<i class="fa-solid fa-folder file-icon folder"></i>`;
+                fileIconHtml = `<i class="fa-solid fa-folder file-icon" style="color: var(--primary);"></i>`;
+                onClickAction = isSearch ? `window.goToFolder('${filePath.replace(/'/g, "\\'")}')` : `window.navigateFolder('${file.name.replace(/'/g, "\\'")}')`;
             } else {
-                const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'];
-                const videoExts = ['mp4', 'avi', 'mov', 'mkv', 'webm'];
-                const audioExts = ['mp3', 'wav', 'ogg', 'aac', 'flac'];
-                const docExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-                const archiveExts = ['zip', 'rar', '7z', 'tar', 'gz'];
-                const codeExts = ['js', 'ts', 'py', 'html', 'css', 'json', 'xml', 'md'];
-
-                if (imageExts.includes(ext)) { iconClass = 'fa-file-image'; iconType = 'image'; }
-                else if (videoExts.includes(ext)) { iconClass = 'fa-file-video'; iconType = 'video'; }
-                else if (audioExts.includes(ext)) { iconClass = 'fa-file-audio'; iconType = 'audio'; }
-                else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) { iconClass = 'fa-file-zipper'; iconType = 'archive'; }
-                else if (['doc', 'docx'].includes(ext)) { iconClass = 'fa-file-word'; iconType = 'doc'; }
-                else if (['xls', 'xlsx'].includes(ext)) { iconClass = 'fa-file-excel'; iconType = 'doc'; }
-                else if (ext === 'pdf') { iconClass = 'fa-file-pdf'; iconType = 'doc'; }
-                else if (codeExts.includes(ext)) { iconClass = 'fa-file-code'; iconType = 'code'; }
-
-                fileIconHtml = `<i class="fa-solid ${iconClass} file-icon ${iconType}"></i>`;
+                let iconClass = 'fa-file';
+                const mediaExts = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'mp4', 'webm', 'ogg', 'mov', 'mkv', 'mp3', 'wav', 'pdf'];
+                if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) iconClass = 'fa-file-image';
+                else if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(ext)) iconClass = 'fa-file-video';
+                else if (['mp3', 'wav', 'ogg'].includes(ext)) iconClass = 'fa-file-audio';
+                else if (['pdf'].includes(ext)) iconClass = 'fa-file-pdf';
+                else if (['zip', 'rar', '7z'].includes(ext)) iconClass = 'fa-file-zipper';
+                else if (['doc', 'docx'].includes(ext)) iconClass = 'fa-file-word';
+                else if (['xls', 'xlsx'].includes(ext)) iconClass = 'fa-file-excel';
+                else if (['txt', 'md', 'json', 'csv'].includes(ext)) iconClass = 'fa-file-lines';
+                
+                if (mediaExts.includes(ext)) {
+                    fileIconHtml = `<i class="fa-solid ${iconClass} file-icon"></i>`;
+                } else {
+                    fileIconHtml = `<i class="fa-solid ${iconClass} file-icon"></i>`;
+                }
             }
             
             const size = file.isDirectory ? '' : formatBytes(file.size);
@@ -534,25 +499,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="file-actions" style="flex-shrink:0;">
-                    <button class="action-btn more-btn mobile-only" title="More"><i class="fa-solid fa-ellipsis-vertical"></i></button>
-                    <div class="mobile-menu">
-                        ${!file.isDirectory ? `<button class="menu-item share-btn"><i class="fa-solid fa-link"></i> Share</button>` : ''}
-                        ${file.isDirectory || ['jpg','jpeg','png','gif','mp4','webm','mp3','wav','pdf'].includes(ext) ? `<button class="menu-item preview-btn"><i class="fa-solid fa-eye"></i> Preview</button>` : ''}
-                        <button class="menu-item hide-btn"><i class="fa-solid ${isHiddenFolder ? 'fa-eye' : 'fa-eye-slash'}"></i> ${isHiddenFolder ? 'Unhide' : 'Hide'}</button>
-                        <button class="menu-item rename-btn"><i class="fa-solid fa-pen-to-square"></i> Rename</button>
-                    </div>
-                    ${file.isDirectory ?
-                        `<a href="/api/download-zip?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(authToken)}" class="action-btn download" title="Download Zip"><i class="fa-solid fa-file-zipper"></i></a>` :
+                    <button class="action-btn hide-file-btn" title="${isHiddenFolder ? 'Unhide' : 'Hide'}"><i class="fa-solid ${isHiddenFolder ? 'fa-eye' : 'fa-eye-slash'}"></i></button>
+                    <button class="action-btn rename-btn" title="Rename"><i class="fa-solid fa-pen-to-square"></i></button>
+                    ${file.isDirectory ? 
+                        `<a href="/api/download-zip?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(authToken)}" class="action-btn download" title="Download Zip"><i class="fa-solid fa-file-zipper"></i></a>` : 
                         `<a href="/api/download?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(authToken)}" class="action-btn download" download="${file.name}" title="Download"><i class="fa-solid fa-download"></i></a>`}
-                    <button class="action-btn delete delete-btn" data-path="${filePath.replace(/"/g, '&quot;')}" title="Delete">
+                    <button class="action-btn delete" onclick="deleteItem('${filePath.replace(/'/g, "\\'")}')" title="Delete">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             `;
             
             // Events
-            const hideFileBtns = item.querySelectorAll('.hide-file-btn, .hide-btn');
-            hideFileBtns.forEach(btn => btn.addEventListener('click', async () => {
+            const hideFileBtn = item.querySelector('.hide-file-btn');
+            hideFileBtn.addEventListener('click', async () => {
                 const newParentPath = isHiddenFolder ? '' : '.hidden';
                 try {
                     const res = await fetch('/api/move', {
@@ -563,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (res.ok) fetchFiles();
                     else { const data = await res.json(); alert(data.error || 'Action failed'); }
                 } catch(e) { console.error(e); }
-            }));
+            });
 
             const checkbox = item.querySelector('.file-checkbox');
             checkbox.addEventListener('change', (e) => {
@@ -583,16 +543,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Delete button handler
-            const deleteBtn = item.querySelector('.delete-btn');
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const path = deleteBtn.dataset.path;
-                window.deleteItem(path);
-            });
-
-            const renameBtns = item.querySelectorAll('.rename-btn');
-            renameBtns.forEach(btn => btn.addEventListener('click', () => {
+            const renameBtn = item.querySelector('.rename-btn');
+            renameBtn.addEventListener('click', () => {
                 showModal('Rename', `Enter new name for ${file.name}:`, 'New name', file.name, async (newName) => {
                     if (!newName || newName === file.name) return;
                     try {
@@ -605,83 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         else { const data = await response.json(); alert(data.error || 'Rename failed'); }
                     } catch (e) { console.error(e); }
                 });
-            }));
-
-            // Share button handlers
-            const shareBtns = item.querySelectorAll('.share, .share-btn');
-            shareBtns.forEach(btn => btn.addEventListener('click', async () => {
-                try {
-                    const response = await fetch('/api/share', {
-                        method: 'POST',
-                        headers: getHeaders(),
-                        body: JSON.stringify({ path: filePath, expiresIn: 24 })
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        const shareUrl = `${window.location.origin}/api/shared/${data.shareId}`;
-                        modalInput.type = 'text';
-                        showModal('Share Link Created', `Share this link (valid for 24 hours):`, '', shareUrl, () => {});
-                        modalConfirm.style.display = 'none';
-                        modalCancel.innerText = 'Close';
-                    } else {
-                        const data = await response.json();
-                        alert(data.error || 'Failed to create share link');
-                    }
-                } catch (e) { console.error(e); }
-            }));
-
-            // Preview button handlers
-            const previewBtns = item.querySelectorAll('.preview, .preview-btn');
-            previewBtns.forEach(btn => btn.addEventListener('click', () => {
-                showLightbox(file, ext);
-            }));
-
-            // Mobile more button handler
-            const moreBtn = item.querySelector('.more-btn');
-            const mobileMenu = item.querySelector('.mobile-menu');
-            if (moreBtn) {
-                moreBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    // Close other menus first
-                    document.querySelectorAll('.mobile-menu.show').forEach(m => {
-                        if (m !== mobileMenu) m.classList.remove('show');
-                    });
-                    mobileMenu.classList.toggle('show');
-                });
-            }
-
-            // Share button handler
-            const shareBtn = item.querySelector('.share');
-            if (shareBtn) {
-                shareBtn.addEventListener('click', async () => {
-                    try {
-                        const response = await fetch('/api/share', {
-                            method: 'POST',
-                            headers: getHeaders(),
-                            body: JSON.stringify({ path: filePath, expiresIn: 24 })
-                        });
-                        if (response.ok) {
-                            const data = await response.json();
-                            const shareUrl = `${window.location.origin}/api/shared/${data.shareId}`;
-                            modalInput.type = 'text';
-                            showModal('Share Link Created', `Share this link (valid for 24 hours):`, '', shareUrl, () => {});
-                            modalConfirm.style.display = 'none';
-                            modalCancel.innerText = 'Close';
-                        } else {
-                            const data = await response.json();
-                            alert(data.error || 'Failed to create share link');
-                        }
-                    } catch (e) { console.error(e); }
-                });
-            }
-
-            // Preview button handler
-            const previewBtn = item.querySelector('.preview');
-            if (previewBtn) {
-                previewBtn.addEventListener('click', () => {
-                    showLightbox(file, ext);
-                });
-            }
+            });
 
             fileList.appendChild(item);
         });
