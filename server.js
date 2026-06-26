@@ -31,6 +31,7 @@ if (!fs.existsSync(hiddenDir)) fs.mkdirSync(hiddenDir, { recursive: true });
 
 // Security headers
 app.use(helmet({
+    hsts: false, // Disable HSTS to prevent browsers from forcing HTTPS on local IP/development
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
