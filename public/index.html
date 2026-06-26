@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Home NAS</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 448 512%22><path fill=%22%2322c55e%22 d=%22M0 80C0 53.5 21.5 32 48 32h352c26.5 0 48 21.5 48 48v64c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V80zm400 32a16 16 0 1 0 0-32 16 16 0 1 0 0 32zm-48 0a16 16 0 1 0 0-32 16 16 0 1 0 0 32zM0 272c0-26.5 21.5-48 48-48h352c26.5 0 48 21.5 48 48v64c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48v-64zm400 32a16 16 0 1 0 0-32 16 16 0 1 0 0 32zm-48 0a16 16 0 1 0 0-32 16 16 0 1 0 0 32zM48 416c-26.5 0-48 21.5-48 48v16c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48v-16c0-26.5-21.5-48-48-48H48zm352 64a16 16 0 1 0 0-32 16 16 0 1 0 0 32zm-48 0a16 16 0 1 0 0-32 16 16 0 1 0 0 32z%22/></svg>">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-animation"></div>
+    
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <h2><i class="fa-solid fa-lock"></i> Authentication</h2>
+            <p>Please enter the NAS password.</p>
+            <input type="password" id="password-input" placeholder="Password">
+            <button id="login-btn">Unlock</button>
+            <p id="login-error" style="color: var(--danger); display: none; margin-top: 10px;">Incorrect password</p>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-content" style="display: none;">
+        <header>
+            <div class="top-actions">
+                <button id="mobile-menu-btn" class="icon-btn mobile-only"><i class="fa-solid fa-bars"></i></button>
+                <button id="hidden-btn" class="icon-btn" title="Hidden Files"><i class="fa-solid fa-eye-slash"></i> <span class="btn-text">Hidden</span></button>
+                <button id="trash-btn" class="icon-btn" title="Recycle Bin"><i class="fa-solid fa-trash-can"></i> <span class="btn-text">Trash</span></button>
+                <button id="pc-health-btn" class="icon-btn pc-only" title="Server Health"><i class="fa-solid fa-heart-pulse"></i> <span class="btn-text">Health</span></button>
+            </div>
+            <div class="logo">
+                <i class="fa-solid fa-server"></i>
+                <h1>Home NAS</h1>
+            </div>
+            <p class="subtitle">Your Personal Mobile Cloud</p>
+            <div class="storage-info" id="storage-info" style="display: none;">
+                <div class="storage-text">
+                    <span><span id="storage-used-text">0 GB</span> used</span>
+                    <span><span id="storage-free-text">0 GB</span> free</span>
+                </div>
+                <div class="storage-bar-container">
+                    <div class="storage-bar" id="storage-bar"></div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <div class="progress-bar-container" id="progress-container" style="display: none;">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+            </section>
+
+            <section class="files-section">
+                <div class="search-container">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="search-input" placeholder="Search across all folders...">
+                </div>
+
+        <!-- Hidden Upload Inputs -->
+        <input type="file" id="file-input" multiple style="display: none;" />
+        <input type="file" id="folder-input" webkitdirectory directory multiple style="display: none;" />
+
+        <div class="section-header">
+                    <h2><i class="fa-solid fa-folder-open"></i> <span id="breadcrumb" style="cursor:pointer; color:var(--primary);">Home</span></h2>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <select id="sort-select" class="sort-select">
+                            <option value="date_desc">Newest First</option>
+                            <option value="date_asc">Oldest First</option>
+                            <option value="name_asc">Name (A-Z)</option>
+                            <option value="name_desc">Name (Z-A)</option>
+                            <option value="size_desc">Largest First</option>
+                            <option value="size_asc">Smallest First</option>
+                        </select>
+                        <button id="upload-file-btn" class="icon-btn" title="Upload File(s)"><i class="fa-solid fa-file-arrow-up"></i></button>
+                        <button id="upload-folder-btn" class="icon-btn" title="Upload Folder"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+                        <button id="new-folder-btn" class="icon-btn" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
+                        <button id="refresh-btn" class="icon-btn" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+        </div>
+                <div class="file-list" id="file-list">
+                    <!-- Files will be injected here -->
+                    <div class="loading">Loading files...</div>
+                </div>
+            </section>
+        </main>
+
+        <div id="multi-action-bar" class="multi-action-bar">
+            <span id="selected-count">0 selected</span>
+            <div class="multi-actions">
+                <button id="multi-download-btn" title="Download Zip"><i class="fa-solid fa-file-zipper"></i> Zip</button>
+                <button id="multi-move-btn" title="Move"><i class="fa-solid fa-truck-moving"></i> Move</button>
+                <button id="multi-delete-btn" class="danger-btn" title="Delete"><i class="fa-solid fa-trash"></i> Delete</button>
+                <button id="multi-cancel-btn" title="Cancel Selection"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Lightbox -->
+    <div id="lightbox-overlay" class="lightbox-overlay">
+        <button id="lightbox-close" class="lightbox-close"><i class="fa-solid fa-xmark"></i></button>
+        <div class="lightbox-content">
+            <img id="lightbox-img" src="" style="display:none;" />
+            <video id="lightbox-video" controls style="display:none;"></video>
+            <audio id="lightbox-audio" controls style="display:none;"></audio>
+            <iframe id="lightbox-pdf" src="" style="display:none; width:100%; height:90vh; border:none; border-radius:10px;"></iframe>
+        </div>
+    </div>
+
+    <!-- Health Dashboard Modal -->
+    <div id="health-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3><i class="fa-solid fa-heart-pulse" style="color:var(--danger)"></i> Server Health</h3>
+            <div class="health-stats">
+                <div class="stat-row"><span>CPU Usage:</span> <strong id="health-cpu">0%</strong></div>
+                <div class="stat-row"><span>RAM Used:</span> <strong id="health-ram">0 GB / 0 GB</strong></div>
+                <div class="stat-row"><span>Uptime:</span> <strong id="health-uptime">0 hrs</strong></div>
+            </div>
+            <div class="modal-actions" style="margin-top:20px;">
+                <button id="health-close-btn" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Modal -->
+    <div id="app-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="modal-title">Title</h3>
+            <p id="modal-desc">Description</p>
+            <input type="text" id="modal-input" class="modal-input">
+            <div class="modal-actions">
+                <button id="modal-cancel" class="btn-cancel">Cancel</button>
+                <button id="modal-confirm" class="btn-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
