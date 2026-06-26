@@ -76,6 +76,8 @@ body {
     z-index: 1;
     max-width: 1400px;
     margin: 0 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* ========================================
@@ -306,9 +308,11 @@ button i {
 .file-list {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-height: 0;
 }
 
 .file-list::-webkit-scrollbar {
@@ -316,16 +320,16 @@ button i {
 }
 
 .file-list::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--bg-tertiary);
 }
 
 .file-list::-webkit-scrollbar-thumb {
-    background: var(--border-color);
+    background: var(--border-hover);
     border-radius: 4px;
 }
 
 .file-list::-webkit-scrollbar-thumb:hover {
-    background: var(--border-hover);
+    background: var(--primary);
 }
 
 .file-item {
