@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loginBtn.addEventListener('click', async () => {
+        console.log('Login button clicked, password:', passwordInput.value);
         authToken = passwordInput.value;
         localStorage.setItem('nas_token', authToken);
         const res = await fetch(`/api/files?path=`, { headers: { 'Authorization': `Bearer ${authToken}` } });

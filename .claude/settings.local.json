@@ -4,7 +4,9 @@
       "Bash(npm install *)",
       "Bash(timeout 5 node server.js)",
       "Bash(timeout 3 node server.js)",
-      "Bash(openssl req *)"
+      "Bash(openssl req *)",
+      "Bash(node server.js)",
+      "Bash(curl -k https://localhost:5443/script.js)"
     ]
   }
 }
