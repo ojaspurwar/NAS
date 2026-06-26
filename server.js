@@ -129,6 +129,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// HTTP to HTTPS redirect - only for HTTP server port
+app.use((req, res, next) => {
+    console.log(`HTTP redirect check: localPort=${req.socket.localPort}, PORT=${PORT}`);
+    if (req.socket.localPort == PORT) {
+        console.log(`Redirecting to https://${req.hostname}:${HTTPS_PORT}${req.url}`);
+        return res.redirect(`https://${req.hostname}:${HTTPS_PORT}${req.url}`);
+    }
+    next();
+});
+
 app.use(express.static('public'));
 
 // Configure Multer for uploads

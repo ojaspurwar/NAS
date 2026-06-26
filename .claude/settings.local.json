@@ -6,7 +6,14 @@
       "Bash(timeout 3 node server.js)",
       "Bash(openssl req *)",
       "Bash(node server.js)",
-      "Bash(curl -k https://localhost:5443/script.js)"
+      "Bash(curl -k https://localhost:5443/script.js)",
+      "Bash(curl -I http://localhost:5000/)",
+      "Bash(curl *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \"5000\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(findstr \"5443\")",
+      "Bash(taskkill *)"
     ]
   }
 }
